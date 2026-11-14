@@ -49,6 +49,12 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            cd flask-app
-            pip install -r requirements.txt
-            sudo systemctl restart flaskapp
+            set -e
+            cd ~/flask-app
+            python3 -m venv .venv
+            .venv/bin/pip install --quiet -r requirements.txt
+            if [ -f gunicorn.pid ]; then kill "$(cat gunicorn.pid)" || true; sleep 2; fi
+            APP_VERSION=${{ github.sha }} .venv/bin/gunicorn --bind 0.0.0.0:5000 \
+              --workers 2 --daemon --pid gunicorn.pid app:app
+            sleep 3
+            curl --fail http://localhost:5000/health
